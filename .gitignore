@@ -1,0 +1,26 @@
+# Environment and secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Data
+data/raw/*
+!data/raw/.gitkeep
+
+# Trained models
+models/*
+!models/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MLflow
+mlruns/
+
+# IDE
+.vscode/
+.idea/
