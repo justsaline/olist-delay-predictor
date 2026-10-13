@@ -1,46 +1,49 @@
-services:
-  db:
-    image: postgres:16
-    container_name: olist-db
-    restart: unless-stopped
+  services:
+    db:
+      image: postgres:16
+      container_name: olist-db
+      restart: unless-stopped
 
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      environment:
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        POSTGRES_DB: ${POSTGRES_DB}
 
-    ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      ports:
+        - "${POSTGRES_PORT:-5433}:5432"
 
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      volumes:
+        - pgdata:/var/lib/postgresql/data
 
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      healthcheck:
+        test:
+          [
+            "CMD-SHELL",
+            "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+          ]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+        start_period: 10s
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-    ports:
-      - "8080:80"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./data/raw:/data/raw:ro
+    pgadmin:
+      image: dpage/pgadmin4:9.17
+      restart: unless-stopped
+      environment:
+        PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+        PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      ports:
+        - "8080:80"
+      depends_on:
+        db:
+          condition: service_healthy
+      volumes:
+        - pgadmin_data:/var/lib/pgadmin
+        # NOTE: the folder below must match PGADMIN_EMAIL with "@" replaced by "_"
+        # e.g. admin@example.com -> admin_example.com. Change it if you use a different email.
+        - ./data/raw:/var/lib/pgadmin/storage/admin_example.com/data/raw
+        - ./sql:/var/lib/pgadmin/storage/admin_example.com/sql
 
-volumes:
-  pgdata:
-  pgadmin_data:
+  volumes:
+    pgdata:
+    pgadmin_data:
