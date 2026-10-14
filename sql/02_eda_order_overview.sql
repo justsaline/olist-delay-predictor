@@ -57,3 +57,80 @@ SELECT
     ) AS missing_estimated_date
 
 FROM orders;
+
+SELECT MIN(order_purchase_timestamp), MAX(order_purchase_timestamp), COUNT(*) FROM orders;
+SELECT MIN(order_delivered_customer_date), MAX(order_delivered_customer_date), COUNT(*) FROM orders;
+SELECT MIN(order_estimated_delivery_date), MAX(order_estimated_delivery_date), COUNT(*) FROM orders;
+
+SELECT
+    order_id,
+    order_delivered_customer_date - order_purchase_timestamp AS delivery_time
+FROM orders
+WHERE order_delivered_customer_date IS NOT NULL;
+
+SELECT
+    MIN(order_delivered_customer_date - order_purchase_timestamp) AS min_delivery_time,
+	MAX(order_delivered_customer_date - order_purchase_timestamp) AS max_delivery_time,
+	AVG(order_delivered_customer_date - order_purchase_timestamp) AS avg_delivery_time
+FROM orders
+WHERE order_delivered_customer_date IS NOT NULL;
+
+SELECT
+    order_id,
+    order_status,
+    order_purchase_timestamp,
+    order_delivered_customer_date,
+    order_delivered_customer_date - order_purchase_timestamp AS delivery_time
+FROM orders
+WHERE order_delivered_customer_date IS NOT NULL
+ORDER BY delivery_time DESC
+LIMIT 10;
+
+SELECT * FROM orders
+	WHERE order_id = 'ca07593549f1816d26a572e06dc1eab6';
+
+SELECT COUNT(*) AS delayed_orders FROM orders
+	WHERE order_delivered_customer_date IS NOT NULL
+	AND order_delivered_customer_date > order_estimated_delivery_date;
+
+SELECT
+    COUNT(*) FILTER (
+        WHERE order_delivered_customer_date > order_estimated_delivery_date
+    ) * 100.0
+    / COUNT(*) AS late_delivery_percentage
+FROM orders
+WHERE order_status = 'delivered';
+
+SELECT
+    DATE_TRUNC('month', order_purchase_timestamp) AS purchase_month,
+    COUNT(*) AS total_orders
+FROM orders
+GROUP BY DATE_TRUNC('month', order_purchase_timestamp)
+ORDER BY purchase_month;
+
+SELECT
+    DATE_TRUNC('month', order_purchase_timestamp) AS purchase_month,
+    COUNT(*) AS total_orders,
+    COUNT(*) FILTER (
+        WHERE order_status = 'delivered'
+    ) AS delivered_orders,
+    COUNT(*) FILTER (
+        WHERE order_status = 'delivered'
+          AND order_delivered_customer_date > order_estimated_delivery_date
+    ) AS late_orders,
+    ROUND(
+        100.0 * COUNT(*) FILTER (
+            WHERE order_status = 'delivered'
+              AND order_delivered_customer_date > order_estimated_delivery_date
+        )
+        / NULLIF(
+            COUNT(*) FILTER (
+                WHERE order_status = 'delivered'
+            ),
+            0
+        ),
+        2
+    ) AS late_delivery_percentage
+FROM orders
+GROUP BY DATE_TRUNC('month', order_purchase_timestamp)
+ORDER BY purchase_month;
