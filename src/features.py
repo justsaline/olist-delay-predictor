@@ -36,7 +36,6 @@ def prepare_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
         df["order_estimated_delivery_date"]
     )
 
-    df["purchase_month"] = df["order_purchase_timestamp"].dt.month
     df["purchase_day_of_week"] = df["order_purchase_timestamp"].dt.dayofweek
     df["purchase_hour"] = df["order_purchase_timestamp"].dt.hour
 
@@ -45,15 +44,31 @@ def prepare_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
         - df["order_purchase_timestamp"]
     ).dt.total_seconds() / 86400
 
+    df["customer_state"] = df["customer_state"].fillna("UNKNOWN").str.strip()
+    df["seller_state"] = df["seller_state"].fillna("UNKNOWN").str.strip()
+
+    df["is_interstate"] = (
+        df["seller_state"] != df["customer_state"]
+    ).astype(int)
+
+    df["zip_prefix_diff"] = (
+        df["customer_zip_code_prefix"] - df["seller_zip_code_prefix"]
+    ).abs().fillna(0)
+
     feature_columns = [
         "item_count",
         "total_price",
         "total_freight",
         "seller_count",
-        "purchase_month",
+        "total_weight_g",
+        "total_volume_cm3",
+        "is_interstate",
+        "zip_prefix_diff",
         "purchase_day_of_week",
         "purchase_hour",
         "estimated_delivery_days",
+        "customer_state",
+        "seller_state",
     ]
 
     X = df[feature_columns].copy()
