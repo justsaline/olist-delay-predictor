@@ -30,11 +30,11 @@ class OrderRequest(BaseModel):
     estimated_delivery_days: float = Field(18.0, gt=0, description="Promised delivery window in days")
     customer_state: str = Field("RJ", min_length=2, max_length=2, description="2-letter customer state code")
     seller_state: str = Field("SP", min_length=2, max_length=2, description="2-letter seller state code")
-    threshold: float | None = Field(
-        default=None,
+    threshold: float = Field(
+        default=DEFAULT_THRESHOLD,
         ge=0.0,
         le=1.0,
-        description="Optional custom probability cutoff (defaults to saved 0.70 threshold)",
+        description="Probability cutoff (defaults to saved 0.70 threshold)",
     )
 
 @app.get("/")
@@ -56,7 +56,7 @@ def health_check():
 @app.post("/predict")
 def predict_delay(order: OrderRequest):
     customer_state = order.customer_state.strip().upper()
-    seller_state = order.seller.state.strip().upper()
+    seller_state = order.seller_state.strip().upper()
     is_interstate = int(seller_state != customer_state)
 
     row = {
@@ -78,7 +78,7 @@ def predict_delay(order: OrderRequest):
     input_df = pd.DataFrame([row])[FEATURE_COLUMNS]
     delay_probability = float(model.predict_proba(input_df)[:,-1][0])
 
-    threshold = order.threshold if order_threshold is not None else DEFAULT_THRESHOLD
+    threshold = order.threshold if order.threshold is not None else DEFAULT_THRESHOLD
     is_late = delay_probability >= threshold
 
     return {
