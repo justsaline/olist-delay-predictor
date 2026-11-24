@@ -15,6 +15,8 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 from xgboost import XGBClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import joblib
+from pathlib import Path
 
 def split_data():
     df = build_dataset()
@@ -127,8 +129,10 @@ def train_baseline():
         tree_preprocessor,
         XGBClassifier(
             n_estimators=200,
-            max_depth=5,
+            max_depth=3,
             learning_rate=0.05,
+            subsample=0.8,
+            colsample_bytree=0.8,
             scale_pos_weight=(y_train == 0).sum() / (y_train == 1).sum(),
             eval_metric="logloss",
             random_state=42,
@@ -149,6 +153,19 @@ def train_baseline():
     print("Val ROC-AUC:", round(roc_auc_score(y_val, xgb_probabilities), 4))
 
     print("\nXGBoost probability summary:")
+    for threshold in [0.8, 0.75, 0.7, 0.65, 0.6, 0.5]:
+        xgb_thresh_preds = (xgb_probabilities >= threshold).astype(int)
+        precision = precision_score(y_val, xgb_thresh_preds, zero_division=0)
+        recall = recall_score(y_val, xgb_thresh_preds, zero_division=0)
+        f1 = f1_score(y_val, xgb_thresh_preds, zero_division=0)
+        flagged = int(xgb_thresh_preds.sum())
+        print(
+            f"Threshold: {threshold:.2f} | "
+            f"Precision: {precision:.3f} | "
+            f"Recall: {recall:.3f} | "
+            f"F1: {f1:.3f} | "
+            f"Flagged: {flagged}/{len(y_val)}"
+        )
     print(pd.Series(xgb_probabilities).describe(
         percentiles=[0.5, 0.9, 0.95, 0.99]
     ))
@@ -163,6 +180,29 @@ def train_baseline():
 
     print("\n=== Top 15 Features (by XGBoost importance) ===")
     print(feature_summary.head(15).to_string(index=False))
+
+    chosen_threshold = 0.70
+    test_probabilities = xgb_model.predict_proba(X_test)[:, 1]
+    test_predictions = (test_probabilities >= chosen_threshold).astype(int)
+
+    print(f"\n=== Final XGBoost Evaluation on Test Set (Threshold = {chosen_threshold:.2f}) ===")
+    print(classification_report(y_test, test_predictions, zero_division=0))
+    print("Confusion matrix:")
+    print(confusion_matrix(y_test, test_predictions))
+    print("Test ROC-AUC:", round(roc_auc_score(y_test, test_probabilities), 4))
+    print(f"Flagged: {int(test_predictions.sum())}/{len(y_test)}")
+
+    model_dir = Path("models")
+    model_dir.mkdir(exist_ok=True)
+
+    artifact = {
+        "model": xgb_model,
+        "threshold": chosen_threshold,
+        "feature_columns": list(X_train.columns),
+    }
+    artifact_path = model_dir / "xgb_delay_predictor.joblib"
+    joblib.dump(artifact, artifact_path)
+    print(f"\nSaved model artifact to {artifact_path}")
 
     return model
 

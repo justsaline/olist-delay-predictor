@@ -13,6 +13,7 @@ data/raw/*
 
 # Trained models
 models/*
+models/*.joblib
 !models/.gitkeep
 
 # Jupyter
